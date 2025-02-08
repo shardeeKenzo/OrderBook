@@ -1,0 +1,3 @@
+C:/MyStuff/C++ Projects/BasicOrderBook/cmake-build-debug/CMakeFiles/BasicOrderBook.dir
+C:/MyStuff/C++ Projects/BasicOrderBook/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/MyStuff/C++ Projects/BasicOrderBook/cmake-build-debug/CMakeFiles/rebuild_cache.dir
