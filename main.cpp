@@ -50,6 +50,10 @@ public:
     OrderType getType() const { return type_; }
     Quantity getFilledQuantity() const { return initialQuantity_ - remainingQuantity_; }
 
+    void setPrice (const Price price) { price_ = price; }
+    void setQuantity(const Quantity quantity) { initialQuantity_ = quantity; }
+    void setType(const OrderType type) { type_ = type; }
+
     bool isFilled() const
     {
         return remainingQuantity_ == 0;
@@ -148,7 +152,71 @@ public:
                 bids.erase(mapsIt);
             }
         }
+    }
 
+    void orderModify(OrderID order_id, const Price price, const Quantity quantity, const OrderType type)
+    {
+        const auto it = std::ranges::find_if(order_dictionary, [order_id] (const std::shared_ptr<Order>& order)
+        {
+            return order->getID() == order_id;
+        });
+
+        const auto& order = *it;
+
+        if (price != order->getPrice())
+        {
+            if (order->getSide() == Side::Buy)
+            {
+                const auto mapsIt = buys.find(order->getPrice());
+
+                auto& dq = mapsIt->second;
+                std::erase(dq, order);
+
+                if (dq.empty())
+                {
+                    buys.erase(mapsIt);
+                }
+            } else
+            {
+                const auto mapsIt = bids.find(order->getPrice());
+
+                auto& dq = mapsIt->second;
+                std::erase(dq, order);
+
+                if (dq.empty())
+                {
+                    bids.erase(mapsIt);
+                }
+            }
+        }
+
+        order->setPrice(price);
+        order->setQuantity(quantity);
+        order->setType(type);
+
+
+        if (order->getSide() == Side::Buy)
+        {
+            if (const auto mapIt = buys.find(order->getPrice()); mapIt == buys.end())
+            {
+                buys.insert({order->getPrice(), std::deque{order}});
+            }
+            else
+            {
+                mapIt->second.push_back(order);
+            }
+        }
+        else
+        {
+            if (const auto mapIt = bids.find(order->getPrice()); mapIt == bids.end())
+            {
+                bids.insert({order->getPrice(), std::deque{order}});
+            }
+            else
+            {
+                mapIt->second.push_back(order);
+            }
+        }
     }
 
     void printQuantityAtLevel(const Price price)
@@ -156,7 +224,6 @@ public:
         if (const auto it = buys.find(price); it == buys.end())
         {
             std::cout << "No orders on this price" << std::endl;
-            return;
         } else
         {
             Quantity quan = 0;
@@ -182,10 +249,14 @@ int main()
     order_book.orderPlace(15, 30, Side::Buy, OrderType::GoodTillCancel);
 
     order_book.printQuantityAtLevel(15);
+    order_book.printQuantityAtLevel(16);
+    order_book.printQuantityAtLevel(17);
 
-    order_book.orderDelete(1);
+    order_book.orderModify(1,17,100, OrderType::GoodTillCancel);
 
     order_book.printQuantityAtLevel(15);
+    order_book.printQuantityAtLevel(16);
+    order_book.printQuantityAtLevel(17);
     return 0;
 }
 
