@@ -78,8 +78,8 @@ class OrderBook
 private:
     OrderID counter = 0;
 
-    std::multimap<Price, std::deque<std::shared_ptr<Order>>, std::greater<>> buys { };
-    std::multimap<Price, std::deque<std::shared_ptr<Order>>, std::less<>> bids { };
+    std::multimap<Price, std::deque<std::shared_ptr<Order>>, std::greater<>> bids_ { };
+    std::multimap<Price, std::deque<std::shared_ptr<Order>>, std::less<>> asks_ { };
 
     OrderDictionary order_dictionary {};
 
@@ -94,9 +94,9 @@ public:
 
         if (order->getSide() == Side::Buy)
         {
-            if (const auto it = buys.find(order->getPrice()); it == buys.end())
+            if (const auto it = bids_.find(order->getPrice()); it == bids_.end())
             {
-                buys.insert({order->getPrice(), std::deque{order}});
+                bids_.insert({order->getPrice(), std::deque{order}});
             } else
             {
                 it->second.push_back(order);
@@ -104,9 +104,9 @@ public:
         }
         if (order->getSide() == Side::Sell)
         {
-            if (const auto it = bids.find(order->getPrice()); it == bids.end())
+            if (const auto it = asks_.find(order->getPrice()); it == asks_.end())
             {
-                bids.insert({order->getPrice(), std::deque{order}});
+                asks_.insert({order->getPrice(), std::deque{order}});
             } else
             {
                 it->second.push_back(order);
@@ -133,23 +133,23 @@ public:
 
         if (order->getSide() == Side::Buy)
         {
-            const auto mapsIt = buys.find(order->getPrice());
+            const auto mapsIt = bids_.find(order->getPrice());
             auto& dq = mapsIt->second;
             std::erase(dq, order);
 
             if (dq.empty())
             {
-                buys.erase(mapsIt);
+                bids_.erase(mapsIt);
             }
         } else
         {
-            const auto mapsIt = bids.find(order->getPrice());
+            const auto mapsIt = asks_.find(order->getPrice());
             auto& dq = mapsIt->second;
             std::erase(dq, order);
 
             if (dq.empty())
             {
-                bids.erase(mapsIt);
+                asks_.erase(mapsIt);
             }
         }
     }
@@ -167,25 +167,25 @@ public:
         {
             if (order->getSide() == Side::Buy)
             {
-                const auto mapsIt = buys.find(order->getPrice());
+                const auto mapsIt = bids_.find(order->getPrice());
 
                 auto& dq = mapsIt->second;
                 std::erase(dq, order);
 
                 if (dq.empty())
                 {
-                    buys.erase(mapsIt);
+                    bids_.erase(mapsIt);
                 }
             } else
             {
-                const auto mapsIt = bids.find(order->getPrice());
+                const auto mapsIt = asks_.find(order->getPrice());
 
                 auto& dq = mapsIt->second;
                 std::erase(dq, order);
 
                 if (dq.empty())
                 {
-                    bids.erase(mapsIt);
+                    asks_.erase(mapsIt);
                 }
             }
         }
@@ -197,9 +197,9 @@ public:
 
         if (order->getSide() == Side::Buy)
         {
-            if (const auto mapIt = buys.find(order->getPrice()); mapIt == buys.end())
+            if (const auto mapIt = bids_.find(order->getPrice()); mapIt == bids_.end())
             {
-                buys.insert({order->getPrice(), std::deque{order}});
+                bids_.insert({order->getPrice(), std::deque{order}});
             }
             else
             {
@@ -208,9 +208,9 @@ public:
         }
         else
         {
-            if (const auto mapIt = bids.find(order->getPrice()); mapIt == bids.end())
+            if (const auto mapIt = asks_.find(order->getPrice()); mapIt == asks_.end())
             {
-                bids.insert({order->getPrice(), std::deque{order}});
+                asks_.insert({order->getPrice(), std::deque{order}});
             }
             else
             {
@@ -219,9 +219,47 @@ public:
         }
     }
 
+    std::shared_ptr<Order> getBestAsk() const
+    {
+        const auto& bestAsk = *asks_.begin();
+
+        return bestAsk.second.front();
+    }
+
+    std::shared_ptr<Order> getBestBid() const
+    {
+        const auto& bestBid = *bids_.begin();
+
+        return bestBid.second.front();
+    }
+
+    bool canMatch(const Side side, const Price price) const
+    {
+        if (side == Side::Buy)
+        {
+            if (asks_.empty())
+            {
+                return false;
+            }
+            const auto bestAsk = getBestAsk();
+
+            return price >= bestAsk->getPrice();
+        }
+        else
+        {
+            if (bids_.empty())
+            {
+                return false;
+            }
+            const auto bestBid = getBestBid();
+
+            return price <= bestBid->getPrice();
+        }
+    }
+
     void printQuantityAtLevel(const Price price)
     {
-        if (const auto it = buys.find(price); it == buys.end())
+        if (const auto it = bids_.find(price); it == bids_.end())
         {
             std::cout << "No orders on this price" << std::endl;
         } else
@@ -257,6 +295,11 @@ int main()
     order_book.printQuantityAtLevel(15);
     order_book.printQuantityAtLevel(16);
     order_book.printQuantityAtLevel(17);
+
+    const bool is = order_book.canMatch(Side::Sell, 10);
+    std::cout << static_cast<int>(is) << std::endl;
+
+
     return 0;
 }
 
