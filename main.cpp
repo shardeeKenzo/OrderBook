@@ -73,6 +73,32 @@ public:
 
 using OrderDictionary = std::vector<std::shared_ptr<Order>>;
 
+struct TradeInfo {
+    OrderID order_id;
+    Price price_;
+    Quantity quantity;
+};
+
+class Trade {
+
+private:
+    TradeInfo bidTrade_;
+    TradeInfo askTrade_;
+
+public:
+
+    Trade(const TradeInfo& bidTrade, const TradeInfo& askTrade) :
+        bidTrade_ { bidTrade },
+        askTrade_ { askTrade }
+        { }
+
+    const TradeInfo& getBidTrade () const { return bidTrade_; }
+    const TradeInfo& getAskTrade () const { return askTrade_; }
+
+};
+
+using Trades = std::vector<Trade>;
+
 class OrderBook
 {
 private:
@@ -87,34 +113,6 @@ public:
 
     OrderBook() = default;
 
-    std::shared_ptr<Order> orderPlace(Price price, Quantity quantity, Side side, OrderType type)
-    {
-        auto order = std::make_shared<Order>(++counter,price,quantity,side,type);
-        order_dictionary.push_back(order);
-
-        if (order->getSide() == Side::Buy)
-        {
-            if (const auto it = bids_.find(order->getPrice()); it == bids_.end())
-            {
-                bids_.insert({order->getPrice(), std::deque{order}});
-            } else
-            {
-                it->second.push_back(order);
-            }
-        }
-        if (order->getSide() == Side::Sell)
-        {
-            if (const auto it = asks_.find(order->getPrice()); it == asks_.end())
-            {
-                asks_.insert({order->getPrice(), std::deque{order}});
-            } else
-            {
-                it->second.push_back(order);
-            }
-        }
-        return order;
-    }
-
     void orderDelete(OrderID order_id)
     {
         const auto it = std::ranges::find_if(order_dictionary, [order_id] (const std::shared_ptr<Order>& order)
@@ -124,12 +122,10 @@ public:
 
         if (it == order_dictionary.end())
         {
-            throw std::invalid_argument("Order does not exist");
+            throw std::invalid_argument(std::format("Order {} does not exist", order_id));
             return;
         }
         const auto& order = *it;
-
-        order_dictionary.erase(it);
 
         if (order->getSide() == Side::Buy)
         {
@@ -152,9 +148,10 @@ public:
                 asks_.erase(mapsIt);
             }
         }
+        order_dictionary.erase(it);
     }
 
-    void orderModify(OrderID order_id, const Price price, const Quantity quantity, const OrderType type)
+    Trades orderModify(OrderID order_id, const Price price, const Quantity quantity, const OrderType type)
     {
         const auto it = std::ranges::find_if(order_dictionary, [order_id] (const std::shared_ptr<Order>& order)
         {
@@ -217,6 +214,7 @@ public:
                 mapIt->second.push_back(order);
             }
         }
+        return matchOrders();
     }
 
     std::shared_ptr<Order> getBestAsk() const
@@ -257,7 +255,79 @@ public:
         }
     }
 
-    void printQuantityAtLevel(const Price price)
+    Trades matchOrders()
+    {
+        Trades trades;
+        trades.reserve(order_dictionary.size());
+
+        while (true)
+        {
+            if (bids_.empty() || asks_.empty())
+            {
+                break;
+            }
+
+            auto& [bidPrice, bids] = *bids_.begin();
+            auto& [askPrice, asks] = *asks_.begin();
+
+            if (bidPrice < askPrice)
+            {
+                break;
+            }
+
+            while (!bids.empty() && !asks.empty())
+            {
+                const auto bestBid = getBestBid();
+                const auto bestAsk = getBestAsk();
+
+                const Quantity tradeQuantity = std::min(bestAsk->getRemainingQuantity(), bestBid->getRemainingQuantity());
+
+                bestBid->Fill(tradeQuantity);
+                bestAsk->Fill(tradeQuantity);
+
+                if (bestBid->isFilled())
+                {
+                    orderDelete(bestBid->getID());
+                }
+                if (bestAsk->isFilled())
+                {
+                    orderDelete(bestAsk->getID());
+                }
+                trades.push_back(Trade{{bestBid->getID(), bestBid->getPrice(), bestBid->getQuantity()},{bestAsk->getID(),bestAsk->getPrice(),bestAsk->getQuantity()}});
+            }
+        }
+        return trades;
+    }
+
+    Trades orderPlace(Price price, Quantity quantity, Side side, OrderType type)
+    {
+        const auto order = std::make_shared<Order>(++counter,price,quantity,side,type);
+        order_dictionary.push_back(order);
+
+        if (order->getSide() == Side::Buy)
+        {
+            if (const auto it = bids_.find(order->getPrice()); it == bids_.end())
+            {
+                bids_.insert({order->getPrice(), std::deque{order}});
+            } else
+            {
+                it->second.push_back(order);
+            }
+        }
+        if (order->getSide() == Side::Sell)
+        {
+            if (const auto it = asks_.find(order->getPrice()); it == asks_.end())
+            {
+                asks_.insert({order->getPrice(), std::deque{order}});
+            } else
+            {
+                it->second.push_back(order);
+            }
+        }
+        return matchOrders();
+    }
+
+    void printQuantityAtLevelBids(const Price price)
     {
         if (const auto it = bids_.find(price); it == bids_.end())
         {
@@ -267,22 +337,44 @@ public:
             Quantity quan = 0;
             for (const auto orders = it->second; const auto& order : orders)
             {
-                std::cout << std::format("Order {} with quantity {}", order->getID(), order->getQuantity()) << std::endl;
-                quan += order->getQuantity();
+                std::cout << std::format("Order {} with quantity {}", order->getID(), order->getRemainingQuantity()) << std::endl;
+                quan += order->getRemainingQuantity();
             }
             std::cout << "Total quantity is " << quan << std::endl;
         }
     }
+
+    void printQuantityAtLevelAsks(const Price price)
+    {
+        if (const auto it = asks_.find(price); it == asks_.end())
+        {
+            std::cout << "No orders on this price" << std::endl;
+        } else
+        {
+            Quantity quan = 0;
+            for (const auto orders = it->second; const auto& order : orders)
+            {
+                std::cout << std::format("Order {} with quantity {}", order->getID(), order->getRemainingQuantity()) << std::endl;
+                quan += order->getRemainingQuantity();
+            }
+            std::cout << "Total quantity is " << quan << std::endl;
+        }
+    }
+
+    void printDictionary()
+    {
+        for (const auto& order : order_dictionary)
+        {
+            std::cout << order->getID() << std::endl;
+        }
+    }
 };
-
-
-
 
 int main()
 {
     OrderBook order_book {};
 
-    order_book.orderPlace(15, 100, Side::Buy, OrderType::GoodTillCancel);
+    /*order_book.orderPlace(15, 100, Side::Buy, OrderType::GoodTillCancel);
     order_book.orderPlace(15, 80, Side::Buy, OrderType::GoodTillCancel);
     order_book.orderPlace(15, 30, Side::Buy, OrderType::GoodTillCancel);
 
@@ -297,7 +389,22 @@ int main()
     order_book.printQuantityAtLevel(17);
 
     const bool is = order_book.canMatch(Side::Sell, 10);
-    std::cout << static_cast<int>(is) << std::endl;
+    std::cout << static_cast<int>(is) << std::endl;*/
+
+
+    order_book.orderPlace(15, 10, Side::Sell, OrderType::GoodTillCancel);
+    order_book.orderPlace(16, 20, Side::Sell, OrderType::GoodTillCancel);
+    order_book.orderPlace(17, 30, Side::Sell, OrderType::GoodTillCancel);
+
+    order_book.orderPlace(15,5,Side::Buy,OrderType::GoodTillCancel);
+    order_book.orderPlace(16,50,Side::Buy,OrderType::GoodTillCancel);
+    order_book.orderPlace(17,30,Side::Buy,OrderType::GoodTillCancel);
+
+    order_book.printDictionary();
+
+
+
+
 
 
     return 0;
