@@ -19,7 +19,8 @@ enum class OrderType
 {
     Market,
     GoodTillCancel,
-    FillAndKill,
+    FillOrKill,
+    ImmediateOrCancel,
 };
 
 class Order
@@ -104,8 +105,8 @@ class OrderBook
 private:
     OrderID counter = 0;
 
-    std::multimap<Price, std::deque<std::shared_ptr<Order>>, std::greater<>> bids_ { };
-    std::multimap<Price, std::deque<std::shared_ptr<Order>>, std::less<>> asks_ { };
+    std::map<Price, std::deque<std::shared_ptr<Order>>, std::greater<>> bids_ { };
+    std::map<Price, std::deque<std::shared_ptr<Order>>, std::less<>> asks_ { };
 
     OrderDictionary order_dictionary {};
 
@@ -255,6 +256,42 @@ public:
         }
     }
 
+    Quantity getTotalLiquidityBelowPrice(const Price price)
+    {
+        Quantity total_liquidity { };
+
+        if (auto it = asks_.lower_bound(price); it != asks_.end())
+        {
+            while (it != asks_.end())
+            {
+                for (const auto& dq = it->second; const auto& order : dq)
+                {
+                    total_liquidity += order->getQuantity();
+                }
+                ++it;
+            }
+        }
+        return total_liquidity;
+    }
+
+    Quantity getTotalLiquidityAbovePrice(const Price price)
+    {
+        Quantity total_liquidity { };
+
+        if (auto it = bids_.upper_bound(price); it != bids_.end())
+        {
+            while (it != bids_.end())
+            {
+                for (const auto& dq = it->second; const auto& order : dq)
+                {
+                    total_liquidity += order->getQuantity();
+                }
+                ++it;
+            }
+        }
+        return total_liquidity;
+    }
+
     Trades matchOrders()
     {
         Trades trades;
@@ -301,6 +338,25 @@ public:
 
     Trades orderPlace(Price price, Quantity quantity, Side side, OrderType type)
     {
+        if (type == OrderType::FillOrKill)
+        {
+            if (side == Side::Buy)
+            {
+                if (getTotalLiquidityBelowPrice(price) < quantity)
+                {
+                    std::cout << "No liquidity for this order" << '\n';
+                    return matchOrders();
+                }
+            } else
+            {
+                if (getTotalLiquidityAbovePrice(price) < quantity)
+                {
+                    std::cout << "No liquidity for this order" << '\n';
+                    return matchOrders();
+                }
+            }
+        }
+
         const auto order = std::make_shared<Order>(++counter,price,quantity,side,type);
         order_dictionary.push_back(order);
 
@@ -361,7 +417,7 @@ public:
         }
     }
 
-    void printDictionary()
+    void printDictionary() const
     {
         for (const auto& order : order_dictionary)
         {
@@ -374,38 +430,28 @@ int main()
 {
     OrderBook order_book {};
 
-    /*order_book.orderPlace(15, 100, Side::Buy, OrderType::GoodTillCancel);
-    order_book.orderPlace(15, 80, Side::Buy, OrderType::GoodTillCancel);
-    order_book.orderPlace(15, 30, Side::Buy, OrderType::GoodTillCancel);
-
-    order_book.printQuantityAtLevel(15);
-    order_book.printQuantityAtLevel(16);
-    order_book.printQuantityAtLevel(17);
-
-    order_book.orderModify(1,17,100, OrderType::GoodTillCancel);
-
-    order_book.printQuantityAtLevel(15);
-    order_book.printQuantityAtLevel(16);
-    order_book.printQuantityAtLevel(17);
-
-    const bool is = order_book.canMatch(Side::Sell, 10);
-    std::cout << static_cast<int>(is) << std::endl;*/
-
-
-    order_book.orderPlace(15, 10, Side::Sell, OrderType::GoodTillCancel);
+    /*order_book.orderPlace(15, 10, Side::Sell, OrderType::GoodTillCancel);
+    order_book.printDictionary();
     order_book.orderPlace(16, 20, Side::Sell, OrderType::GoodTillCancel);
+    order_book.printDictionary();
     order_book.orderPlace(17, 30, Side::Sell, OrderType::GoodTillCancel);
-
-    order_book.orderPlace(15,5,Side::Buy,OrderType::GoodTillCancel);
-    order_book.orderPlace(16,50,Side::Buy,OrderType::GoodTillCancel);
-    order_book.orderPlace(17,30,Side::Buy,OrderType::GoodTillCancel);
-
     order_book.printDictionary();
 
+    order_book.orderPlace(15,5,Side::Buy,OrderType::GoodTillCancel);
+    order_book.printDictionary();
+    order_book.orderPlace(16,50,Side::Buy,OrderType::GoodTillCancel);
+    order_book.printDictionary();
+    order_book.orderPlace(17,30,Side::Buy,OrderType::GoodTillCancel);
+    order_book.printDictionary();*/
 
+    order_book.orderPlace(15, 20, Side::Sell, OrderType::GoodTillCancel);
+    order_book.orderPlace(15, 40, Side::Sell, OrderType::GoodTillCancel);
+    order_book.orderPlace(15, 60, Side::Sell, OrderType::GoodTillCancel);
+    order_book.printDictionary();
 
-
-
+    order_book.orderPlace(15, 120, Side::Buy, OrderType::FillOrKill);
+    order_book.printQuantityAtLevelAsks(15);
+    order_book.printDictionary();
 
     return 0;
 }
