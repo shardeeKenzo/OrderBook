@@ -17,7 +17,6 @@ enum class Side
 
 enum class OrderType
 {
-    Market,
     GoodTillCancel,
     FillOrKill,
     ImmediateOrCancel,
@@ -113,6 +112,53 @@ private:
 public:
 
     OrderBook() = default;
+
+    Trades orderPlace(Price price, Quantity quantity, Side side, OrderType type)
+    {
+        if (type == OrderType::FillOrKill)
+        {
+            if (side == Side::Buy)
+            {
+                if (getTotalLiquidityBelowPrice(price) < quantity)
+                {
+                    std::cout << "No liquidity for this order" << '\n';
+                    return matchOrders();
+                }
+            } else
+            {
+                if (getTotalLiquidityAbovePrice(price) < quantity)
+                {
+                    std::cout << "No liquidity for this order" << '\n';
+                    return matchOrders();
+                }
+            }
+        }
+
+        const auto order = std::make_shared<Order>(++counter,price,quantity,side,type);
+        order_dictionary.push_back(order);
+
+        if (order->getSide() == Side::Buy)
+        {
+            if (const auto it = bids_.find(order->getPrice()); it == bids_.end())
+            {
+                bids_.insert({order->getPrice(), std::deque{order}});
+            } else
+            {
+                it->second.push_back(order);
+            }
+        }
+        if (order->getSide() == Side::Sell)
+        {
+            if (const auto it = asks_.find(order->getPrice()); it == asks_.end())
+            {
+                asks_.insert({order->getPrice(), std::deque{order}});
+            } else
+            {
+                it->second.push_back(order);
+            }
+        }
+        return matchOrders();
+    }
 
     void orderDelete(OrderID order_id)
     {
@@ -266,7 +312,7 @@ public:
             {
                 for (const auto& dq = it->second; const auto& order : dq)
                 {
-                    total_liquidity += order->getQuantity();
+                    total_liquidity += order->getRemainingQuantity();
                 }
                 ++it;
             }
@@ -284,7 +330,7 @@ public:
             {
                 for (const auto& dq = it->second; const auto& order : dq)
                 {
-                    total_liquidity += order->getQuantity();
+                    total_liquidity += order->getRemainingQuantity();
                 }
                 ++it;
             }
@@ -330,57 +376,10 @@ public:
                 {
                     orderDelete(bestAsk->getID());
                 }
-                trades.push_back(Trade{{bestBid->getID(), bestBid->getPrice(), bestBid->getQuantity()},{bestAsk->getID(),bestAsk->getPrice(),bestAsk->getQuantity()}});
+                trades.push_back(Trade{{bestBid->getID(), bestBid->getPrice(), tradeQuantity},{bestAsk->getID(),bestAsk->getPrice(),tradeQuantity}});
             }
         }
         return trades;
-    }
-
-    Trades orderPlace(Price price, Quantity quantity, Side side, OrderType type)
-    {
-        if (type == OrderType::FillOrKill)
-        {
-            if (side == Side::Buy)
-            {
-                if (getTotalLiquidityBelowPrice(price) < quantity)
-                {
-                    std::cout << "No liquidity for this order" << '\n';
-                    return matchOrders();
-                }
-            } else
-            {
-                if (getTotalLiquidityAbovePrice(price) < quantity)
-                {
-                    std::cout << "No liquidity for this order" << '\n';
-                    return matchOrders();
-                }
-            }
-        }
-
-        const auto order = std::make_shared<Order>(++counter,price,quantity,side,type);
-        order_dictionary.push_back(order);
-
-        if (order->getSide() == Side::Buy)
-        {
-            if (const auto it = bids_.find(order->getPrice()); it == bids_.end())
-            {
-                bids_.insert({order->getPrice(), std::deque{order}});
-            } else
-            {
-                it->second.push_back(order);
-            }
-        }
-        if (order->getSide() == Side::Sell)
-        {
-            if (const auto it = asks_.find(order->getPrice()); it == asks_.end())
-            {
-                asks_.insert({order->getPrice(), std::deque{order}});
-            } else
-            {
-                it->second.push_back(order);
-            }
-        }
-        return matchOrders();
     }
 
     void printQuantityAtLevelBids(const Price price)
