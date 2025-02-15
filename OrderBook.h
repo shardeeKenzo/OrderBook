@@ -3,10 +3,11 @@
 #include <deque>
 #include <map>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 #include "Trade.h"
 
-using OrderDictionary = std::vector<std::shared_ptr<Order>>;
+using OrderDictionary = std::unordered_map<OrderID, std::shared_ptr<Order>>;
 using Trades = std::vector<Trade>;
 
 class OrderBook

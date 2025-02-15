@@ -6,7 +6,7 @@ void OrderBook::placeOrder(Price price, Quantity quantity, Side side, OrderType 
 {
 
     const auto order = std::make_shared<Order>(++counter,price,quantity,side,type);
-    order_dictionary.push_back(order);
+    order_dictionary.emplace(order->getID(), order);
 
     if (order->getSide() == Side::Buy)
     {
@@ -32,17 +32,16 @@ void OrderBook::placeOrder(Price price, Quantity quantity, Side side, OrderType 
 
 void OrderBook::deleteOrder(OrderID order_id)
 {
-    const auto it = std::ranges::find_if(order_dictionary, [order_id] (const std::shared_ptr<Order>& order)
-    {
-        return order->getID() == order_id;
-    });
-
-    if (it == order_dictionary.end())
+    if (!order_dictionary.contains(order_id))
     {
         throw std::invalid_argument(std::format("Order {} does not exist", order_id));
     }
 
-    if (const auto& order = *it; order->getSide() == Side::Buy)
+    const auto order = order_dictionary[order_id];
+
+    order_dictionary.erase(order_id);
+
+    if (order->getSide() == Side::Buy)
     {
         const auto mapsIt = bids_.find(order->getPrice());
         auto& dq = mapsIt->second;
@@ -63,17 +62,16 @@ void OrderBook::deleteOrder(OrderID order_id)
             asks_.erase(mapsIt);
         }
     }
-    order_dictionary.erase(it);
 }
 
 void OrderBook::modifyOrder(OrderID order_id, const Price price, const Quantity quantity, const OrderType type)
 {
-    const auto it = std::ranges::find_if(order_dictionary, [order_id] (const std::shared_ptr<Order>& order)
+    if (!order_dictionary.contains(order_id))
     {
-        return order->getID() == order_id;
-    });
+        throw std::invalid_argument(std::format("Order {} does not exist", order_id));
+    }
 
-    const auto& order = *it;
+    const auto& order = order_dictionary[order_id];
 
     if (price != order->getPrice())
     {
@@ -208,6 +206,6 @@ void OrderBook::printDictionary() const
 {
     for (const auto& order : order_dictionary)
     {
-        std::cout << order->getID() << std::endl;
+        std::cout << order.second->getID() << std::endl;
     }
 }
