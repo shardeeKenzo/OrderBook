@@ -5,7 +5,7 @@
 #include "OrderBook.h"
 
 
-Quantity MatchingEngine::getTotalLiquidityBelowPrice(OrderBook& order_book, const Price price)
+Quantity MatchingEngine::getTotalLiquidityBelowPrice(OrderBook& order_book, const Price price) const
 {
     Quantity total_liquidity { };
 
@@ -23,7 +23,7 @@ Quantity MatchingEngine::getTotalLiquidityBelowPrice(OrderBook& order_book, cons
     return total_liquidity;
 }
 
-Quantity MatchingEngine::getTotalLiquidityAbovePrice(OrderBook& order_book, const Price price)
+Quantity MatchingEngine::getTotalLiquidityAbovePrice(OrderBook& order_book, const Price price) const
 {
     Quantity total_liquidity { };
 

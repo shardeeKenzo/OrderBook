@@ -9,7 +9,7 @@
 
 class TradingSystem {
 public:
-    TradingSystem(OrderBook   order_book, const MatchingEngine& matching_engine) : order_book_ {std::move(order_book)},
+    TradingSystem(OrderBook order_book, const MatchingEngine& matching_engine) : order_book_ {std::move(order_book)},
     matching_engine_ {matching_engine}
     {}
 
@@ -17,8 +17,8 @@ public:
     Trades systemOrderModify(OrderID order_id, Price price, Quantity quantity, OrderType type);
     Trades systemDeleteOrder(OrderID order_id);
 
-    OrderBook getOrderBook() const { return order_book_; }
-    MatchingEngine getMatchingEngine() const { return matching_engine_; }
+    OrderBook getOrderBook() const;
+    MatchingEngine getMatchingEngine() const;
 
 private:
     OrderBook order_book_;

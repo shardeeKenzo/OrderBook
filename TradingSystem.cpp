@@ -30,3 +30,6 @@ Trades TradingSystem::systemDeleteOrder(const OrderID order_id)
     Trades matchTrades = matching_engine_.matchOrders(order_book_);
     return matchTrades;
 }
+
+OrderBook TradingSystem::getOrderBook() const { return order_book_; }
+MatchingEngine TradingSystem::getMatchingEngine() const { return matching_engine_; }

@@ -10,8 +10,8 @@ public:
     MatchingEngine() = default;
 
     bool canMatch(OrderBook& order_book, Side side, Price price, OrderType type, Quantity quantity);
-    Quantity getTotalLiquidityBelowPrice(OrderBook& order_book, Price price);
-    Quantity getTotalLiquidityAbovePrice(OrderBook& order_book, Price price);
+    Quantity getTotalLiquidityBelowPrice(OrderBook& order_book, Price price) const;
+    Quantity getTotalLiquidityAbovePrice(OrderBook& order_book, Price price) const;
     Trades matchOrders(OrderBook& order_book);
 };
 #endif //MATCHINGENGINE_H

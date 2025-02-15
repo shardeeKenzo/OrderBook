@@ -153,7 +153,7 @@ std::shared_ptr<Order> OrderBook::getBestBid() const
     return bestBid.second.front();
 }
 
-OrderDictionary OrderBook::getOrderDictionary() const
+const OrderDictionary& OrderBook::getOrderDictionary() const
 {
     return order_dictionary;
 }

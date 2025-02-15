@@ -22,7 +22,7 @@ public:
 
     std::shared_ptr<Order> getBestAsk() const;
     std::shared_ptr<Order> getBestBid() const;
-    OrderDictionary getOrderDictionary() const;
+    const OrderDictionary& getOrderDictionary() const;
 
     void printQuantityAtLevelBids(Price price) const;
     void printQuantityAtLevelAsks(Price price) const;
