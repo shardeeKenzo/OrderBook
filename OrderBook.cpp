@@ -71,61 +71,24 @@ void OrderBook::modifyOrder(OrderID order_id, const Price price, const Quantity 
         throw std::invalid_argument(std::format("Order {} does not exist", order_id));
     }
 
+    bool shouldBeReinserted = false;
+
     const auto& order = order_dictionary[order_id];
 
-    if (price != order->getPrice())
+    if (price != order->getPrice() || type != order->getType())
     {
-        if (order->getSide() == Side::Buy)
-        {
-            const auto mapsIt = bids_.find(order->getPrice());
+        shouldBeReinserted = true;
+        deleteOrder(order_id);
 
-            auto& dq = mapsIt->second;
-            std::erase(dq, order);
-
-            if (dq.empty())
-            {
-                bids_.erase(mapsIt);
-            }
-        } else
-        {
-            const auto mapsIt = asks_.find(order->getPrice());
-
-            auto& dq = mapsIt->second;
-            std::erase(dq, order);
-
-            if (dq.empty())
-            {
-                asks_.erase(mapsIt);
-            }
-        }
     }
 
     order->setPrice(price);
     order->setQuantity(quantity);
     order->setType(type);
 
-
-    if (order->getSide() == Side::Buy)
+    if (shouldBeReinserted)
     {
-        if (const auto mapIt = bids_.find(order->getPrice()); mapIt == bids_.end())
-        {
-            bids_.insert({order->getPrice(), std::deque{order}});
-        }
-        else
-        {
-            mapIt->second.push_back(order);
-        }
-    }
-    else
-    {
-        if (const auto mapIt = asks_.find(order->getPrice()); mapIt == asks_.end())
-        {
-            asks_.insert({order->getPrice(), std::deque{order}});
-        }
-        else
-        {
-            mapIt->second.push_back(order);
-        }
+        placeOrder(price, quantity, order->getSide(), type);
     }
 }
 

@@ -85,7 +85,7 @@ Trades MatchingEngine::matchOrders(OrderBook& order_book)
     return trades;
 }
 
-bool MatchingEngine::canMatch(OrderBook& order_book, const Side side, const Price price, const OrderType type, const Quantity quantity)
+bool MatchingEngine::canMatch(OrderBook& order_book, const Side side, const Price price, const OrderType type, const Quantity quantity) const
 {
 
     if (type == OrderType::FillOrKill)

@@ -6,12 +6,20 @@ using Quantity = size_t;
 using Price = double;
 using OrderID = size_t;
 
+
+
+/**
+ *  Define side of the order
+ */
 enum class Side
 {
     Buy,
     Sell,
 };
 
+/**
+ *  Define order type
+ */
 enum class OrderType
 {
     GoodTillCancel,
@@ -19,6 +27,9 @@ enum class OrderType
     ImmediateOrCancel,
 };
 
+/**
+ *  Definition of the order
+ */
 class Order
 {
 public:
@@ -33,7 +44,13 @@ public:
 
     OrderID getID() const;
     Price getPrice() const;
-    Quantity getQuantity() const;
+    /**
+    *  Return the quantity that the order had in the very beginning
+    */
+    Quantity getInitialQuantity() const;
+    /**
+    *  Return the quantity that the order has right now
+    */
     Quantity getRemainingQuantity() const;
     Side getSide() const;
     OrderType getType() const;
@@ -43,7 +60,13 @@ public:
     void setQuantity(Quantity quantity);
     void setType(OrderType type);
 
+    /**
+    *  Check if the order was fully filled
+    */
     bool isFilled() const;
+    /**
+    *  Fills the order with provided quantity
+    */
     void Fill(Quantity quantity);
 
 private:

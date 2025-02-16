@@ -3,12 +3,18 @@
 
 #include "Order.h"
 
+/**
+ * Info about particular order that was involved into the trade
+ */
 struct TradeInfo {
     OrderID order_id;
     Price price_;
     Quantity quantity;
 };
 
+/**
+ * Definition for the trade that happened
+ */
 class Trade {
 
 public:
