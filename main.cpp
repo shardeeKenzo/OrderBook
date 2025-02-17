@@ -13,6 +13,7 @@ int main()
 
     trading_system.getOrderBook().printDictionary();
     trading_system.systemDeleteOrder(3);
+    trading_system.getOrderBook().printDictionary();
 
     trading_system.systemPlaceOrder(15, 500, Side::Sell, OrderType::FillOrKill);
     trading_system.systemPlaceOrder(15, 10, Side::Sell, OrderType::GoodTillCancel);

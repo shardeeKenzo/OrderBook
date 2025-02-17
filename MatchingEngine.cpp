@@ -52,36 +52,30 @@ Trades MatchingEngine::matchOrders(OrderBook& order_book)
         {
             break;
         }
+        const auto bestBid = order_book.getBestBid();
+        const auto bestAsk = order_book.getBestAsk();
 
-        auto& [bidPrice, bids] = *order_book.getBids().begin();
-        auto& [askPrice, asks] = *order_book.getAsks().begin();
-
-        if (bidPrice < askPrice)
+        if (bestBid->getPrice() < bestAsk->getPrice())
         {
             break;
         }
 
-        while (!bids.empty() && !asks.empty())
+        const Quantity tradeQuantity = std::min(bestAsk->getRemainingQuantity(), bestBid->getRemainingQuantity());
+
+        bestBid->Fill(tradeQuantity);
+        bestAsk->Fill(tradeQuantity);
+
+        if (bestBid->isFilled())
         {
-            const auto bestBid = order_book.getBestBid();
-            const auto bestAsk = order_book.getBestAsk();
-
-            const Quantity tradeQuantity = std::min(bestAsk->getRemainingQuantity(), bestBid->getRemainingQuantity());
-
-            bestBid->Fill(tradeQuantity);
-            bestAsk->Fill(tradeQuantity);
-
-            if (bestBid->isFilled())
-            {
-                order_book.deleteOrder(bestBid->getID());
-            }
-            if (bestAsk->isFilled())
-            {
-                order_book.deleteOrder(bestAsk->getID());
-            }
-            trades.push_back(Trade{{bestBid->getID(), bestBid->getPrice(), tradeQuantity},{bestAsk->getID(),bestAsk->getPrice(),tradeQuantity}});
+            order_book.deleteOrder(bestBid->getID());
         }
+        if (bestAsk->isFilled())
+        {
+            order_book.deleteOrder(bestAsk->getID());
+        }
+        trades.push_back(Trade{{bestBid->getID(), bestBid->getPrice(), tradeQuantity},{bestAsk->getID(),bestAsk->getPrice(),tradeQuantity}});
     }
+
     return trades;
 }
 
